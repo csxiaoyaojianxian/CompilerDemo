@@ -1,17 +1,17 @@
 /**
  * 基于正则文法和有限自动机
- * 实现简单的词法分析器
+ * 实现简单的词法分析器，能识别
  */
 
 /**
- * Token类型枚举
+ * token类型
  */
 enum TokenType {
   Identifier,
-  IntLiteral,
+  IntLiteral, // number
   GT, // >
   GE, // >=
-  Int, // int
+  Int, // [保留字]int
   Assignment, // =
   Plus, // +
   Minus, // -
@@ -19,7 +19,43 @@ enum TokenType {
   Slash, // /
   SemiColon, // ;
   LeftParen, // (
-  RightParen // )
+  RightParen, // )
+}
+
+/**
+ * 有限状态机的各种状态
+ * 通过状态迁移最终确定token状态
+ */
+enum DfaState {
+  Initial, // 初始状态
+
+  // If,
+  // Id_if1,
+  // Id_if2,
+  // Else,
+  // Id_else1,
+  // Id_else2,
+  // Id_else3,
+  // Id_else4,
+
+  // [保留字] int
+  Int,
+  Id_int1, // i
+  Id_int2, // in
+  Id_int3, // int, 不直接切换Int是为了消除下个字符的影响，如inta
+
+  Id, // Identifier
+  GT, // >
+  GE, // >=
+  Assignment, // =
+  Plus, // +
+  Minus, // -
+  Star, // *
+  Slash, // /
+  SemiColon, // ;
+  LeftParen, // (
+  RightParen, // )
+  IntLiteral, // number
 }
 
 /**
@@ -39,42 +75,6 @@ interface TokenReader {
   unread(): void;
   getPosition(): number;
   setPosition(position: number): void;
-}
-
-/**
- * 有限状态机的各种状态
- */
-enum DfaState {
-  Initial,
-
-  If,
-  Id_if1,
-  Id_if2,
-  Else,
-  Id_else1,
-  Id_else2,
-  Id_else3,
-  Id_else4,
-  Int,
-  Id_int1,
-  Id_int2,
-  Id_int3,
-  Id,
-  GT,
-  GE,
-
-  Assignment,
-
-  Plus,
-  Minus,
-  Star,
-  Slash,
-
-  SemiColon,
-  LeftParen,
-  RightParen,
-
-  IntLiteral
 }
 
 /**
@@ -170,27 +170,32 @@ class SimpleLexer {
   }
 
   /**
-   * 有限状态机进入/返回初始状态的处理
+   * 有限状态机针对token初始状态的处理
    * @param {string} ch 当前字符
    * @returns {DfaState} 新的状态
    */
   private initToken(ch: string): DfaState {
+    // 对上一次的token收尾处理
     if (this.tokenText.length > 0) {
+      // token入库
       this.token.setText(this.tokenText);
       this.tokens.push(this.token);
-
+      // 创建新token
       this.tokenText = '';
       this.token = new SimpleToken();
     }
 
+    // 恢复初始状态
     let newState = DfaState.Initial;
     if (this.isAlpha(ch)) {
-      // 第一个字符是字母
+      // 保留关键字处理
+      // 第一个字符是字母(对保留关键字int的特殊处理)
       if (ch === 'i') {
-        newState = DfaState.Id_int1;
+        newState = DfaState.Id_int1; // 进入一个特殊的中间状态，Id_int1=>Id_int2=>INT
       } else {
         newState = DfaState.Id; // 进入Id状态
       }
+      // 先设置为 Identifier，若为保留字再改为 Int
       this.token.setType(TokenType.Identifier);
       this.tokenText += ch;
     } else if (this.isDigit(ch)) {
@@ -242,7 +247,7 @@ class SimpleLexer {
   }
 
   /**
-   * 解析字符串，形成Token
+   * 解析字符串，形成Token，处理有限自动机状态迁移
    * @param {string} code 要解析的代码
    * @returns {SimpleTokenReader} Token读取器
    */
@@ -260,7 +265,7 @@ class SimpleLexer {
 
       switch (state) {
         case DfaState.Initial:
-          state = this.initToken(ch); // 重新确定后续状态
+          state = this.initToken(ch); // 结束前置状态并重新确定后续状态
           break;
         case DfaState.Id:
           if (this.isAlpha(ch) || this.isDigit(ch)) {
@@ -269,47 +274,47 @@ class SimpleLexer {
             state = this.initToken(ch); // 退出标识符状态，并保存Token
           }
           break;
-        case DfaState.GT:
+        case DfaState.GT: // >
           if (ch === '=') {
-            this.token.setType(TokenType.GE); // 转换成GE
+            this.token.setType(TokenType.GE); // > => >= 转换成GE
             state = DfaState.GE;
             this.tokenText += ch;
           } else {
             state = this.initToken(ch); // 退出GT状态，并保存Token
           }
           break;
-        case DfaState.GE:
-        case DfaState.Assignment:
-        case DfaState.Plus:
-        case DfaState.Minus:
-        case DfaState.Star:
-        case DfaState.Slash:
-        case DfaState.SemiColon:
-        case DfaState.LeftParen:
-        case DfaState.RightParen:
+        case DfaState.GE: // >=
+        case DfaState.Assignment: // =
+        case DfaState.Plus: // +
+        case DfaState.Minus: // -
+        case DfaState.Star: // *
+        case DfaState.Slash: // /
+        case DfaState.SemiColon: // ;
+        case DfaState.LeftParen: // (
+        case DfaState.RightParen: // )
           state = this.initToken(ch); // 退出当前状态，并保存Token
           break;
-        case DfaState.IntLiteral:
+        case DfaState.IntLiteral: // number
           if (this.isDigit(ch)) {
             this.tokenText += ch; // 继续保持在数字字面量状态
           } else {
             state = this.initToken(ch); // 退出当前状态，并保存Token
           }
           break;
-        case DfaState.Id_int1:
+        case DfaState.Id_int1: // i
           if (ch === 'n') {
-            state = DfaState.Id_int2;
+            state = DfaState.Id_int2; // in
             this.tokenText += ch;
           } else if (this.isDigit(ch) || this.isAlpha(ch)) {
-            state = DfaState.Id; // 切换回Id状态
+            state = DfaState.Id; // 切换回Id状态(不用切token状态，因为已经是Identifier)
             this.tokenText += ch;
           } else {
             state = this.initToken(ch);
           }
           break;
-        case DfaState.Id_int2:
+        case DfaState.Id_int2: // in
           if (ch === 't') {
-            state = DfaState.Id_int3;
+            state = DfaState.Id_int3; // int，不直接切换为 Int 是为了消除后面字符的影响，如 inta
             this.tokenText += ch;
           } else if (this.isDigit(ch) || this.isAlpha(ch)) {
             state = DfaState.Id; // 切换回id状态
@@ -318,9 +323,9 @@ class SimpleLexer {
             state = this.initToken(ch);
           }
           break;
-        case DfaState.Id_int3:
+        case DfaState.Id_int3: // int
           if (this.isBlank(ch)) {
-            this.token.setType(TokenType.Int);
+            this.token.setType(TokenType.Int); // int
             state = this.initToken(ch);
           } else {
             state = DfaState.Id; // 切换回Id状态
@@ -332,7 +337,7 @@ class SimpleLexer {
       }
     }
 
-    // 把最后一个token送进去
+    // 处理完最后一个token后切换initToken，在initToken中收尾处理
     if (this.tokenText.length > 0) {
       this.initToken(code.charAt(code.length - 1));
     }
@@ -359,31 +364,31 @@ class SimpleLexer {
 function testLexer() {
   const lexer = new SimpleLexer();
 
-  let script = 'int age = 45;';
-  console.log(`parse: ${script}`);
+  let script = 'int age = 30';
+  console.log(`\nparse: ${script}`);
   let tokenReader = lexer.tokenize(script);
   SimpleLexer.dump(tokenReader);
 
   // 测试inta的解析
-  script = 'inta age = 45;';
+  script = 'inta age = 30;';
   console.log(`\nparse: ${script}`);
   tokenReader = lexer.tokenize(script);
   SimpleLexer.dump(tokenReader);
 
   // 测试in的解析
-  script = 'in age = 45;';
+  script = 'in age = 30;';
   console.log(`\nparse: ${script}`);
   tokenReader = lexer.tokenize(script);
   SimpleLexer.dump(tokenReader);
 
   // 测试>=的解析
-  script = 'age >= 45;';
+  script = 'age >= 30;';
   console.log(`\nparse: ${script}`);
   tokenReader = lexer.tokenize(script);
   SimpleLexer.dump(tokenReader);
 
   // 测试>的解析
-  script = 'age > 45;';
+  script = 'age > 30;';
   console.log(`\nparse: ${script}`);
   tokenReader = lexer.tokenize(script);
   SimpleLexer.dump(tokenReader);
