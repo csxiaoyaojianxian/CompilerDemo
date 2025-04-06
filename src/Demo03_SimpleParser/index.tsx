@@ -1,12 +1,16 @@
 /**
- * 基于递归下降算法和上下文无关文法, 实现简单的语法分析器, 生成简化的AST
- * 能处理简单的公式计算。 核心在于解决二元表达式中的难点:
- * 确保正确的优先级和结核性，以及消除左递归
- */
-/*
-add -> mul | add + mul 优化为 add -> mul (+ mul)*
-mul -> pri | mul * pri
-pri -> Id | Num | (add)
+ * 一个简单的语法解析器
+ * 基于递归下降算法和上下文无关文法, 生成简化的AST
+ * 能够解析简单的表达式、变量声明和初始化语句、赋值语句
+ * 核心在于解决二元表达式中的难点: 确保正确的优先级和结核性，以及消除左递归
+ *
+ * 支持的语法规则:
+ * programm -> intDeclare | expressionStatement | assignmentStatement
+ * intDeclare -> 'int' Id ( = additive) ';'
+ * expressionStatement -> addtive ';'
+ * addtive -> multiplicative ( (+ | -) multiplicative)*
+ * multiplicative -> primary ( (* | /) primary)*
+ * primary -> IntLiteral | Id | (additive)
  */
 
 import SimpleLexer, { Token, TokenReader, TokenType, testLexer } from '../Demo01_SimpleLexer';
@@ -75,23 +79,7 @@ class SimpleASTNode implements ASTNode {
 /**
  * 实现一个计算器，但计算的结合性是有问题的，尝试修复加法表达式结合性问题
  */
-class SimpleCalculator {
-  /**
-   * 执行脚本，并打印输出AST和求值过程
-   * @param {string} script 脚本代码
-   */
-  public evaluate(script: string): void {
-    try {
-      // 生成ast
-      const tree = this.parse(script);
-      this.dumpAST(tree, '');
-      // ast执行计算结果
-      this.evaluateAST(tree, '');
-    } catch (e) {
-      console.log(e instanceof Error ? e.message : String(e));
-    }
-  }
-
+class SimpleParser {
   /**
    * 解析脚本，并返回根节点
    * @param {string} code 脚本代码
@@ -109,69 +97,85 @@ class SimpleCalculator {
   }
 
   /**
-   * 对AST节点求值，并打印求值过程
-   * @param {ASTNode} node AST节点
-   * @param {string} indent 缩进字符串
-   * @returns {number} 计算结果
-   */
-  private evaluateAST(node: ASTNode, indent: string): number {
-    let result = 0;
-    console.log(indent + 'Calculating: ' + node.getType());
-
-    switch (node.getType()) {
-      case ASTNodeType.Programm:
-        for (const child of node.getChildren()) {
-          result = this.evaluateAST(child, indent + '\t');
-        }
-        break;
-      case ASTNodeType.Additive: {
-        const child1 = node.getChildren()[0];
-        const value1 = this.evaluateAST(child1, indent + '\t');
-        const child2 = node.getChildren()[1];
-        const value2 = this.evaluateAST(child2, indent + '\t');
-        if (node.getText() === '+') {
-          result = value1 + value2;
-        } else {
-          result = value1 - value2;
-        }
-        break;
-      }
-      case ASTNodeType.Multiplicative: {
-        const child3 = node.getChildren()[0];
-        const value3 = this.evaluateAST(child3, indent + '\t');
-        const child4 = node.getChildren()[1];
-        const value4 = this.evaluateAST(child4, indent + '\t');
-        if (node.getText() === '*') {
-          result = value3 * value4;
-        } else {
-          result = value3 / value4;
-        }
-        break;
-      }
-      case ASTNodeType.IntLiteral:
-        result = parseInt(node.getText(), 10);
-        break;
-      default:
-      // 其他类型不处理
-    }
-
-    console.log(indent + 'Result: ' + result);
-    return result;
-  }
-
-  /**
    * 语法解析：根节点
    * @param {TokenReader} tokens Token读取器
    * @returns {SimpleASTNode} AST节点
    * @throws 解析错误时抛出异常
    */
   private prog(tokens: TokenReader): SimpleASTNode {
-    const node = new SimpleASTNode(ASTNodeType.Programm, 'Calculator');
+    const node = new SimpleASTNode(ASTNodeType.Programm, 'demo');
 
-    const child = this.additive(tokens);
+    while (tokens.peek()) {
+      let child: SimpleASTNode | null = this.intDeclare(tokens);
+      if (child === null) {
+        child = this.expressionStatement(tokens);
+      }
+      if (child === null) {
+        child = this.assignmentStatement(tokens);
+      }
+      if (child) {
+        node.addChild(child);
+      } else {
+        throw new Error('unknown statement');
+      }
+    }
 
-    if (child !== null) {
-      node.addChild(child);
+    return node;
+  }
+
+  /**
+   * 表达式语句，即表达式后面跟个分号。
+   * @return
+   * @throws Exception
+   */
+  public expressionStatement(tokens: TokenReader): SimpleASTNode | null {
+    const pos = tokens.getPosition();
+    let node: SimpleASTNode | null = this.additive(tokens);
+    if (node) {
+      const token = tokens.peek();
+      if (token && token.getType() === TokenType.SemiColon) {
+        tokens.read();
+      } else {
+        node = null;
+        tokens.setPosition(pos); // 回溯
+      }
+    }
+    return node; //直接返回子节点，简化了AST。
+  }
+
+  /**
+   * 赋值语句
+   * @param {TokenReader} tokens Token读取器
+   * @return { SimpleASTNode | null } AST节点
+   * @throws 解析错误时抛出异常
+   */
+  public assignmentStatement(tokens: TokenReader): SimpleASTNode | null {
+    let node: SimpleASTNode | null = null;
+    let token: Token | null = tokens.peek(); // 预读当前token
+    if (token && token.getType() === TokenType.Identifier) {
+      token = tokens.read(); // 读入标识符
+      node = new SimpleASTNode(ASTNodeType.AssignmentStmt, token!.getText());
+      token = tokens.peek(); // 预读判断等号
+      if (token && token.getType() == TokenType.Assignment) {
+        tokens.read(); // 取出等号
+        const child = this.additive(tokens);
+        if (child == null) {
+          // 出错，等号右面没有一个合法的表达式
+          throw new Error('invalide assignment statement, expecting an expression');
+        } else {
+          node.addChild(child); // 添加子节点
+          token = tokens.peek(); // 预读判断分号
+          if (token && token.getType() == TokenType.SemiColon) {
+            tokens.read(); // 消耗掉分号
+          } else {
+            // 出错，缺少分号
+            throw new Error('invalid statement, expecting semicolon');
+          }
+        }
+      } else {
+        tokens.unread(); //回溯，吐出之前消化掉的标识符
+        node = null;
+      }
     }
     return node;
   }
@@ -197,7 +201,7 @@ class SimpleCalculator {
         node = new SimpleASTNode(ASTNodeType.IntDeclaration, token!.getText());
         // [3] 匹配等号：判断后面是否跟了初始化部分，即等号加一个表达式
         token = tokens.peek();
-        if (token !== null && token.getType() === TokenType.Assignment) {
+        if (token && token.getType() === TokenType.Assignment) {
           tokens.read(); // 消耗掉等号
           // [4] 匹配表达式
           const child = this.additive(tokens);
@@ -208,7 +212,7 @@ class SimpleCalculator {
           }
         }
         token = tokens.peek();
-        if (token !== null && token.getType() === TokenType.SemiColon) {
+        if (token && token.getType() === TokenType.SemiColon) {
           tokens.read();
         } else {
           throw new Error('invalid statement, expecting semicolon');
@@ -249,28 +253,7 @@ Programm Calculator
     IntLiteral 4
    */
   private additive(tokens: TokenReader): SimpleASTNode {
-    // 错误：add -> mul | add + mul
     // add -> mul (+ mul)*
-    /*
-    const child1: SimpleASTNode = this.multiplicative(tokens); // left
-    let node: SimpleASTNode = child1;
-    const token = tokens.peek();
-    if (child1 !== null && token !== null) {
-      if (token.getType() === TokenType.Plus || token.getType() === TokenType.Minus) {
-        const opToken = tokens.read();
-        const child2 = this.additive(tokens); // right
-        if (child2 !== null) {
-          node = new SimpleASTNode(ASTNodeType.Additive, opToken!.getText());
-          node.addChild(child1);
-          node.addChild(child2);
-        } else {
-          throw new Error('invalid additive expression, expecting the right part.');
-        }
-      }
-    }
-    if (node === null) {
-      throw new Error('additive expression expected');
-    } */
     let child1: SimpleASTNode = this.multiplicative(tokens); // 应用add规则
     let node: SimpleASTNode = child1;
     if (child1) {
@@ -281,10 +264,14 @@ Programm Calculator
         if (token && (token.getType() === TokenType.Plus || token.getType() === TokenType.Minus)) {
           token = tokens.read(); // 读出加号
           const child2 = this.multiplicative(tokens); // 计算下级节点
-          node = new SimpleASTNode(ASTNodeType.Additive, token!.getText());
-          node.addChild(child1); //注意，新节点在顶层，保证正确的结合性
-          node.addChild(child2);
-          child1 = node;
+          if (child2) {
+            node = new SimpleASTNode(ASTNodeType.Additive, token!.getText());
+            node.addChild(child1); //注意，新节点在顶层，保证正确的结合性
+            node.addChild(child2);
+            child1 = node;
+          } else {
+            throw new Error('invalid additive expression, expecting the right part.');
+          }
         } else {
           break;
         }
@@ -301,25 +288,25 @@ Programm Calculator
    * @throws 解析错误时抛出异常
    */
   private multiplicative(tokens: TokenReader): SimpleASTNode {
-    // mul -> pri | mul * pri
-    const child1: SimpleASTNode = this.primary(tokens);
+    // mul -> pri (* pri)*
+    let child1: SimpleASTNode = this.primary(tokens);
     let node: SimpleASTNode = child1;
-    const token = tokens.peek();
-    if (child1 !== null && token !== null) {
-      if (token.getType() === TokenType.Star || token.getType() === TokenType.Slash) {
-        const opToken = tokens.read();
+    while (true) {
+      let token = tokens.peek();
+      if (token && (token.getType() == TokenType.Star || token.getType() == TokenType.Slash)) {
+        token = tokens.read();
         const child2 = this.multiplicative(tokens);
-        if (child2 !== null) {
-          node = new SimpleASTNode(ASTNodeType.Multiplicative, opToken!.getText());
+        if (child2) {
+          node = new SimpleASTNode(ASTNodeType.Multiplicative, token!.getText());
           node.addChild(child1);
           node.addChild(child2);
+          child1 = node;
         } else {
           throw new Error('invalid multiplicative expression, expecting the right part.');
         }
+      } else {
+        break;
       }
-    }
-    if (node === null) {
-      throw new Error('multiplicative expression expected');
     }
     return node;
   }
@@ -380,34 +367,18 @@ Programm Calculator
  * 测试方法
  */
 const testSimpleCalculator = () => {
-  const calculator = new SimpleCalculator();
-  // 测试变量声明语句的解析
-  let script = 'int a = b+3;';
-  console.log('解析变量声明语句: ' + script);
-  // 词法解析
-  const lexer = new SimpleLexer();
-  const tokens = lexer.tokenize(script);
-  // 语法解析(已封装到prog)
+  const parser = new SimpleParser();
+  let script: string;
+  let tree: ASTNode;
+
   try {
-    const node = calculator.intDeclare(tokens);
-    calculator.dumpAST(node, '');
+    script = 'int age = 1+2+3;';
+    console.log('解析：' + script);
+    tree = parser.parse(script);
+    parser.dumpAST(tree, '');
   } catch (e) {
-    console.log(e instanceof Error ? e.message : String(e));
+    console.log(e);
   }
-
-  // 测试表达式
-  script = '2 + 3 * 5';
-  console.log('\n计算: ' + script);
-  calculator.evaluate(script);
-
-  // 测试语法错误
-  script = '2+';
-  console.log('\n: ' + script + ' 抛出语法错误');
-  calculator.evaluate(script);
-
-  script = '2+3+4';
-  console.log('\n计算: ' + script + '修复结核性错误');
-  calculator.evaluate(script);
 };
 
 // 运行测试

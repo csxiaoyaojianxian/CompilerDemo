@@ -9,7 +9,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './assets/index.css';
-import './Demo02_SimpleASTNode';
+import './Demo03_SimpleParser';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -24,15 +24,19 @@ createRoot(document.getElementById('root')!).render(
         </p>
       </li>
       <li>
-        <h1>Demo02_SimpleASTNode</h1>
+        <h1>Demo02_Calculator</h1>
         <p>
-          基于递归下降算法和上下文无关文法, 实现简单的语法分析器, 生成简化的AST,
-          能处理简单的公式计算。 核心在于解决二元表达式中的难点:
-          确保正确的优先级和结核性，以及消除左递归
+          基于递归下降算法和上下文无关文法, 实现简单的语法分析器, 生成简化的AST。
+          能处理简单的公式计算。 存在结合性问题，仅优化了加法表达式。
         </p>
       </li>
       <li>
-        <h1>Demo03</h1>
+        <h1>Demo03_SimpleParser</h1>
+        <p>
+          在Demo02基础上实现一个简单的语法解析器。
+          能够解析简单的表达式、变量声明和初始化语句、赋值语句。 核心在于解决二元表达式中的难点:
+          确保正确的优先级和结核性，以及消除左递归。
+        </p>
       </li>
     </ul>
   </StrictMode>
