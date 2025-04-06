@@ -2,25 +2,27 @@
  * 基于正则文法和有限自动机
  * 实现简单的词法分析器
  * 能识别 Identifier、IntLiteral、保留关键字int和简单操作符
+ * 核心是依据构造好的有限自动机，在不同的状态中迁移解析出 token
+ * 关注 SimpleLexer.tokenize 和 SimpleLexer.initToken
  */
 
 /**
  * token类型
  */
 enum TokenType {
-  Identifier,
-  IntLiteral, // number
-  GT, // >
-  GE, // >=
-  Int, // [保留字]int
-  Assignment, // =
-  Plus, // +
-  Minus, // -
-  Star, // *
-  Slash, // /
-  SemiColon, // ;
-  LeftParen, // (
-  RightParen, // )
+  Identifier = 'Identifier', // 标识符
+  IntLiteral = 'IntLiteral', // number
+  GT = 'GT', // >
+  GE = 'GE', // >=
+  Int = 'Int', // [保留字]int
+  Assignment = 'Assignment', // =
+  Plus = 'Plus', // +
+  Minus = 'Minus', // -
+  Star = 'Star', // *
+  Slash = 'Slash', // /
+  SemiColon = 'SemiColon', // ;
+  LeftParen = 'LeftParen', // (
+  RightParen = 'RightParen', // )
 }
 
 /**
@@ -71,8 +73,8 @@ interface Token {
  * Token读取器接口
  */
 interface TokenReader {
-  read(): Token | null;
-  peek(): Token | null;
+  read(): Token | null; // 读取并从token流中移除，下一个token变成当前token
+  peek(): Token | null; // 预读当前token
   unread(): void;
   getPosition(): number;
   setPosition(position: number): void;
@@ -115,6 +117,7 @@ class SimpleTokenReader implements TokenReader {
     this.tokens = tokens;
   }
 
+  // 读取并消耗当前token
   read(): Token | null {
     if (this.pos < this.tokens.length) {
       return this.tokens[this.pos++];
@@ -122,6 +125,7 @@ class SimpleTokenReader implements TokenReader {
     return null;
   }
 
+  // 预读当前token
   peek(): Token | null {
     if (this.pos < this.tokens.length) {
       return this.tokens[this.pos];
@@ -362,7 +366,7 @@ class SimpleLexer {
 }
 
 // 测试代码
-function testLexer() {
+const testLexer = () => {
   const lexer = new SimpleLexer();
 
   let script = 'int age = 30';
@@ -393,7 +397,11 @@ function testLexer() {
   console.log(`\nparse: ${script}`);
   tokenReader = lexer.tokenize(script);
   SimpleLexer.dump(tokenReader);
-}
+};
 
 // 执行测试
-testLexer();
+// testLexer();
+
+export default SimpleLexer;
+export type { Token, TokenReader };
+export { TokenType, testLexer };
