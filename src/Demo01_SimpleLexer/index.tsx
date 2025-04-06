@@ -75,7 +75,7 @@ interface Token {
 interface TokenReader {
   read(): Token | null; // 读取并从token流中移除，下一个token变成当前token
   peek(): Token | null; // 预读当前token
-  unread(): void;
+  unread(): void; // 回溯
   getPosition(): number;
   setPosition(position: number): void;
 }

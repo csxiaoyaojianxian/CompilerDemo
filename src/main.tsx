@@ -9,7 +9,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './assets/index.css';
-import './Demo03_SimpleParser';
+import './Demo04_SimpleScript';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -37,6 +37,10 @@ createRoot(document.getElementById('root')!).render(
           能够解析简单的表达式、变量声明和初始化语句、赋值语句。 核心在于解决二元表达式中的难点:
           确保正确的优先级和结核性，以及消除左递归。
         </p>
+      </li>
+      <li>
+        <h1>Demo04_SimpleScript</h1>
+        <p>一个简单的脚本解释器。 支持变量，包括变量的声明语句、表达式语句、赋值语句</p>
       </li>
     </ul>
   </StrictMode>

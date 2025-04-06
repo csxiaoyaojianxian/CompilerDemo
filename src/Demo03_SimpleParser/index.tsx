@@ -3,6 +3,7 @@
  * 基于递归下降算法和上下文无关文法, 生成简化的AST
  * 能够解析简单的表达式、变量声明和初始化语句、赋值语句
  * 核心在于解决二元表达式中的难点: 确保正确的优先级和结核性，以及消除左递归
+ * 关注赋值表达式，使用了"回溯"
  *
  * 支持的语法规则:
  * programm -> intDeclare | expressionStatement | assignmentStatement
@@ -173,7 +174,7 @@ class SimpleParser {
           }
         }
       } else {
-        tokens.unread(); //回溯，吐出之前消化掉的标识符
+        tokens.unread(); // 回溯，吐出之前消化掉的标识符
         node = null;
       }
     }
@@ -186,7 +187,7 @@ class SimpleParser {
    * @returns {SimpleASTNode} AST节点
    * @throws 解析错误时抛出异常
    */
-  public intDeclare(tokens: TokenReader): SimpleASTNode {
+  public intDeclare(tokens: TokenReader): SimpleASTNode | null {
     let node: SimpleASTNode | null = null;
     let token: Token | null = tokens.peek(); // 预读当前token
 
@@ -211,19 +212,17 @@ class SimpleParser {
             node.addChild(child);
           }
         }
+      } else {
+        throw new Error('variable name expected');
+      }
+      if (node) {
         token = tokens.peek();
         if (token && token.getType() === TokenType.SemiColon) {
           tokens.read();
         } else {
           throw new Error('invalid statement, expecting semicolon');
         }
-      } else {
-        throw new Error('variable name expected');
       }
-    }
-
-    if (node === null) {
-      throw new Error('int declaration expected');
     }
     return node;
   }
@@ -383,4 +382,8 @@ const testSimpleCalculator = () => {
 
 // 运行测试
 // testLexer();
-testSimpleCalculator();
+// testSimpleCalculator();
+
+export default SimpleParser;
+export { ASTNodeType };
+export type { ASTNode };
