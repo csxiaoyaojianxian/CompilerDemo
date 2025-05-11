@@ -2,7 +2,7 @@
  * @Author: csxiaoyaojianxian 1724338257@qq.com
  * @Date: 2025-04-05 00:26:36
  * @LastEditors: csxiaoyaojianxian 1724338257@qq.com
- * @LastEditTime: 2025-04-05 12:17:27
+ * @LastEditTime: 2025-05-10 22:20:30
  * @FilePath: /CompilerDemo/src/main.tsx
  * @Description: 入口函数
  */
@@ -35,7 +35,7 @@ createRoot(document.getElementById('root')!).render(
         <p>
           在Demo02基础上实现一个简单的语法解析器。
           能够解析简单的表达式、变量声明和初始化语句、赋值语句。 核心在于解决二元表达式中的难点:
-          确保正确的优先级和结核性，以及消除左递归。
+          确保正确的优先级和结合性，以及消除左递归。
         </p>
       </li>
       <li>

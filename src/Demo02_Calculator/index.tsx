@@ -249,8 +249,7 @@ Programm Calculator
     IntLiteral 4
    */
   private additive(tokens: TokenReader): SimpleASTNode {
-    // 错误：add -> mul | add + mul
-    // add -> mul (+ mul)*
+    // 错误：add -> mul + add 出现结合性问题
     /*
     const child1: SimpleASTNode = this.multiplicative(tokens); // left
     let node: SimpleASTNode = child1;
@@ -271,6 +270,7 @@ Programm Calculator
     if (node === null) {
       throw new Error('additive expression expected');
     } */
+    // add -> mul (+ mul)*
     let child1: SimpleASTNode = this.multiplicative(tokens); // 应用add规则
     let node: SimpleASTNode = child1;
     if (child1) {
@@ -284,7 +284,7 @@ Programm Calculator
           node = new SimpleASTNode(ASTNodeType.Additive, token!.getText());
           node.addChild(child1); //注意，新节点在顶层，保证正确的结合性
           node.addChild(child2);
-          child1 = node;
+          child1 = node; // 核心，实现左结合
         } else {
           break;
         }
@@ -406,7 +406,7 @@ const testSimpleCalculator = () => {
   calculator.evaluate(script);
 
   script = '2+3+4';
-  console.log('\n计算: ' + script + '修复结核性错误');
+  console.log('\n计算: ' + script + '修复结合性错误');
   calculator.evaluate(script);
 };
 

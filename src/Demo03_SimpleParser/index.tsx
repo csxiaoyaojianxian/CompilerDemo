@@ -2,7 +2,7 @@
  * 一个简单的语法解析器
  * 基于递归下降算法和上下文无关文法, 生成简化的AST
  * 能够解析简单的表达式、变量声明和初始化语句、赋值语句
- * 核心在于解决二元表达式中的难点: 确保正确的优先级和结核性，以及消除左递归
+ * 核心在于解决二元表达式中的难点: 确保正确的优先级和结合性，以及消除左递归
  * 关注赋值表达式，使用了"回溯"
  *
  * 支持的语法规则:
@@ -77,9 +77,6 @@ class SimpleASTNode implements ASTNode {
   }
 }
 
-/**
- * 实现一个计算器，但计算的结合性是有问题的，尝试修复加法表达式结合性问题
- */
 class SimpleParser {
   /**
    * 解析脚本，并返回根节点
@@ -267,7 +264,7 @@ Programm Calculator
             node = new SimpleASTNode(ASTNodeType.Additive, token!.getText());
             node.addChild(child1); //注意，新节点在顶层，保证正确的结合性
             node.addChild(child2);
-            child1 = node;
+            child1 = node; // 核心，实现左结合
           } else {
             throw new Error('invalid additive expression, expecting the right part.');
           }
