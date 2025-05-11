@@ -230,7 +230,7 @@ class SimpleParser {
    * @param {TokenReader} tokens Token读取器
    * @returns {SimpleASTNode} AST节点
    * @throws 解析错误时抛出异常
-add -> mul | add + mul 出现结合性bug，如 2+3+4 的顺序为 2+(3+4)
+add -> mul + add 出现结合性bug，如 2+3+4 的顺序为 2+(3+4)
 
 Programm Calculator
   Additive +
